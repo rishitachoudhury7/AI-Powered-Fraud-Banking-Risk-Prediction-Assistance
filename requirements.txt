@@ -5,3 +5,5 @@ scikit-learn
 xgboost
 joblib
 imbalanced-learn
+fastapi
+uvicorn
