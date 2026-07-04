@@ -28,13 +28,17 @@ def investigate(transaction: Transaction):
     rule_flags = check_rules(txn_dict)
 
     narrative = generate_investigation_report(
-        txn_dict, ml_result["fraud_probability"], rule_flags
+        txn_dict,
+        ml_result["fraud_probability"],
+        rule_flags,
+        ml_result["top_features"]
     )
 
     return {
         "transaction": txn_dict,
         "fraud_probability": ml_result["fraud_probability"],
         "risk_tier": ml_result["risk_tier"],
+        "top_features": ml_result["top_features"],
         "rule_flags": rule_flags,
         "llm_narrative": narrative
     }
