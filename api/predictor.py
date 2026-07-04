@@ -1,7 +1,12 @@
 import joblib
 import pandas as pd
+import shap
 
-model = joblib.load("fraud_model.pkl")
+pipeline = joblib.load("fraud_model.pkl")
+preprocessor = pipeline.named_steps["preprocessor"]
+xgb_model = pipeline.named_steps["model"]
+
+explainer = shap.TreeExplainer(xgb_model)
 
 def predict_fraud(transaction: dict) -> dict:
     amount = transaction["amount"]
@@ -10,7 +15,6 @@ def predict_fraud(transaction: dict) -> dict:
     oldbalanceDest = transaction["oldbalanceDest"]
     newbalanceDest = transaction["newbalanceDest"]
 
-    # Same feature engineering as your Streamlit app
     diffsender = newbalanceOrig - (oldbalanceOrg - amount)
     diffreceiver = newbalanceDest - (oldbalanceDest + amount)
 
@@ -26,8 +30,8 @@ def predict_fraud(transaction: dict) -> dict:
         "diffreceiver": [diffreceiver]
     })
 
-    prediction = int(model.predict(input_data)[0])
-    probability = float(model.predict_proba(input_data)[0][1])
+    prediction = int(pipeline.predict(input_data)[0])
+    probability = float(pipeline.predict_proba(input_data)[0][1])
 
     if probability >= 0.8:
         risk_tier = "High"
@@ -36,8 +40,24 @@ def predict_fraud(transaction: dict) -> dict:
     else:
         risk_tier = "Low"
 
+    input_processed = preprocessor.transform(input_data)
+    feature_names = preprocessor.get_feature_names_out()
+
+    shap_values = explainer.shap_values(input_processed)
+
+    feature_impact = sorted(
+        zip(feature_names, shap_values[0]),
+        key=lambda x: abs(x[1]),
+        reverse=True
+    )[:5]
+
+    top_features = [
+        {"feature": f, "impact": round(float(v), 4)} for f, v in feature_impact
+    ]
+
     return {
         "prediction": prediction,
         "fraud_probability": probability,
-        "risk_tier": risk_tier
+        "risk_tier": risk_tier,
+        "top_features": top_features
     }
