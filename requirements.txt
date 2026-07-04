@@ -7,3 +7,4 @@ joblib
 imbalanced-learn
 fastapi
 uvicorn
+groq
