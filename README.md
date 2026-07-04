@@ -95,7 +95,7 @@ The app takes transaction details as input (step, type, amount, sender/receiver 
 - Build a React/Next.js frontend (deployed on Vercel) for a more polished user experience
 - Add SHAP-based explainability so flagged transactions come with a reason, not just a score
 - Explore graph-based features (e.g. via NetworkX) to catch coordinated fraud rings rather than single transactions in isolation
-
+-incorporating account-level transaction history / graph features would likely improve detection of multi-hop fraud patterns like TRANSFER→CASH_OUT chains
 ## Author
 
 **Rishita Choudhury**
