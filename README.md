@@ -89,6 +89,8 @@ streamlit run app.py
 
 The app takes transaction details as input (step, type, amount, sender/receiver balances) and returns a fraud prediction along with the model's probability score.
 
+"My model correctly identifies large origin balances as a risk signal, but under-weights cases where destination accounts show non-zero pre-existing balances — a known blind spot without account-level historical features." 
+
 ## Future Work
 
 - Redeploy on AWS for more control over scaling and latency
