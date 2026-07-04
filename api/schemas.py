@@ -13,3 +13,4 @@ class PredictionResponse(BaseModel):
     prediction: int
     fraud_probability: float
     risk_tier: str
+    top_features: list[dict]
