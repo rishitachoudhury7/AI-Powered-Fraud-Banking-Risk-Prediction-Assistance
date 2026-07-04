@@ -8,3 +8,4 @@ imbalanced-learn
 fastapi
 uvicorn
 groq
+shap 
