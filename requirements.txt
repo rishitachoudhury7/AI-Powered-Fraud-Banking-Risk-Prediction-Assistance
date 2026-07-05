@@ -9,3 +9,5 @@ fastapi
 uvicorn
 groq
 shap 
+sentence-transformers
+supabase
