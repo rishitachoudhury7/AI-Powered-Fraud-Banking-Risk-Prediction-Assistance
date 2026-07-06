@@ -23,9 +23,14 @@ def retrieve_similar_cases(transaction: dict, rule_flags: list, top_k: int = 2) 
     query_text = build_query_text(transaction, rule_flags)
     query_embedding = model.encode(query_text).tolist()
 
+    print("DEBUG: query embedding length:", len(query_embedding))
+    print("DEBUG: query text:", query_text)
+
     response = supabase.rpc(
         "match_policy_chunks",
         {"query_embedding": query_embedding, "match_count": top_k}
     ).execute()
+
+    print("DEBUG: raw response:", response)
 
     return response.data
