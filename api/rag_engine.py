@@ -8,14 +8,17 @@ load_dotenv(dotenv_path=env_path, override=True)
 
 supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
 
-HF_API_URL = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
+HF_API_URL = "https://router.huggingface.co/hf-inference/models/sentence-transformers/all-MiniLM-L6-v2/pipeline/feature-extraction"
 HF_HEADERS = {"Authorization": f"Bearer {os.environ['HF_API_TOKEN']}"}
 
 def get_embedding(text: str) -> list[float]:
-    response = requests.post(HF_API_URL, headers=HF_HEADERS, json={"inputs": text, "options": {"wait_for_model": True}})
+    response = requests.post(
+        HF_API_URL,
+        headers=HF_HEADERS,
+        json={"inputs": text, "options": {"wait_for_model": True}}
+    )
     response.raise_for_status()
-    result = response.json()
-    return result
+    return response.json()
 
 def build_query_text(transaction: dict, rule_flags: list) -> str:
     """Turn a transaction + its rule flags into a natural-language query for retrieval."""
