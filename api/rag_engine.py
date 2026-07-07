@@ -3,7 +3,8 @@ from sentence_transformers import SentenceTransformer
 from supabase import create_client
 from dotenv import load_dotenv
 
-load_dotenv()
+env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
+load_dotenv(dotenv_path=env_path, override=True)
 
 supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
 model = SentenceTransformer("all-MiniLM-L6-v2")
@@ -23,14 +24,9 @@ def retrieve_similar_cases(transaction: dict, rule_flags: list, top_k: int = 2) 
     query_text = build_query_text(transaction, rule_flags)
     query_embedding = model.encode(query_text).tolist()
 
-    print("DEBUG: query embedding length:", len(query_embedding))
-    print("DEBUG: query text:", query_text)
-
     response = supabase.rpc(
         "match_policy_chunks",
         {"query_embedding": query_embedding, "match_count": top_k}
     ).execute()
-
-    print("DEBUG: raw response:", response)
 
     return response.data
