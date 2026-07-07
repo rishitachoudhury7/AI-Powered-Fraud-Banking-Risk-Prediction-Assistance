@@ -7,6 +7,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from api.schemas import Transaction, PredictionResponse
 from api.predictor import predict_fraud
 from api.rules_engine import check_rules
+from api.rag_engine import retrieve_similar_cases
 from api.llm_analyst import generate_investigation_report
 
 app = FastAPI(title="Fraud Detection API", version="1.0")
@@ -26,12 +27,14 @@ def investigate(transaction: Transaction):
 
     ml_result = predict_fraud(txn_dict)
     rule_flags = check_rules(txn_dict)
+    similar_cases = retrieve_similar_cases(txn_dict, rule_flags)
 
     narrative = generate_investigation_report(
         txn_dict,
         ml_result["fraud_probability"],
         rule_flags,
-        ml_result["top_features"]
+        ml_result["top_features"],
+        similar_cases
     )
 
     return {
@@ -40,5 +43,6 @@ def investigate(transaction: Transaction):
         "risk_tier": ml_result["risk_tier"],
         "top_features": ml_result["top_features"],
         "rule_flags": rule_flags,
+        "similar_cases": [{"section": c["section"], "similarity": round(c["similarity"], 3)} for c in similar_cases],
         "llm_narrative": narrative
     }
