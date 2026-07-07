@@ -4,7 +4,8 @@ from sentence_transformers import SentenceTransformer
 from supabase import create_client
 from dotenv import load_dotenv
 
-load_dotenv()
+env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
+load_dotenv(dotenv_path=env_path, override=True)
 
 supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
 model = SentenceTransformer("all-MiniLM-L6-v2")
