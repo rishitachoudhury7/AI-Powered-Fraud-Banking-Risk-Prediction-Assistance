@@ -1,6 +1,6 @@
 import os
 import re
-from sentence_transformers import SentenceTransformer
+import requests
 from supabase import create_client
 from dotenv import load_dotenv
 
@@ -8,21 +8,27 @@ env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
 load_dotenv(dotenv_path=env_path, override=True)
 
 supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
-model = SentenceTransformer("all-MiniLM-L6-v2")
+
+HF_API_URL = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
+HF_HEADERS = {"Authorization": f"Bearer {os.environ['HF_API_TOKEN']}"}
+
+def get_embedding(text: str) -> list[float]:
+    response = requests.post(HF_API_URL, headers=HF_HEADERS, json={"inputs": text, "options": {"wait_for_model": True}})
+    response.raise_for_status()
+    return response.json()
 
 def chunk_markdown(filepath: str) -> list[dict]:
-    """Split the case studies doc into chunks by section headers (##)."""
     with open(filepath, "r", encoding="utf-8") as f:
         text = f.read()
-
-    sections = re.split(r"\n(?=## )", text)
+    text = text.replace("\r\n", "\n")
+    sections = re.split(r"\n(?=##\s)", text)
     chunks = []
     for section in sections:
         section = section.strip()
         if not section:
             continue
-        title_match = re.match(r"## (.+)", section)
-        title = title_match.group(1) if title_match else "Untitled"
+        title_match = re.match(r"##\s+(.+)", section)
+        title = title_match.group(1) if title_match else "Document Header"
         chunks.append({"section": title, "content": section})
     return chunks
 
@@ -31,7 +37,7 @@ def ingest():
     print(f"Found {len(chunks)} chunks. Embedding and uploading...")
 
     for chunk in chunks:
-        embedding = model.encode(chunk["content"]).tolist()
+        embedding = get_embedding(chunk["content"])
         supabase.table("policy_chunks").insert({
             "content": chunk["content"],
             "section": chunk["section"],
