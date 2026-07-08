@@ -9,6 +9,7 @@ from api.predictor import predict_fraud
 from api.rules_engine import check_rules
 from api.rag_engine import retrieve_similar_cases
 from api.llm_analyst import generate_investigation_report
+from api.history_engine import save_search, get_history
 
 app = FastAPI(title="Fraud Detection API", version="1.0")
 
@@ -37,7 +38,7 @@ def investigate(transaction: Transaction):
         similar_cases
     )
 
-    return {
+    result = {
         "transaction": txn_dict,
         "fraud_probability": ml_result["fraud_probability"],
         "risk_tier": ml_result["risk_tier"],
@@ -46,3 +47,19 @@ def investigate(transaction: Transaction):
         "similar_cases": [{"section": c["section"], "similarity": round(c["similarity"], 3)} for c in similar_cases],
         "llm_narrative": narrative
     }
+
+    save_search(
+        transaction=txn_dict,
+        fraud_probability=ml_result["fraud_probability"],
+        risk_tier=ml_result["risk_tier"],
+        top_features=ml_result["top_features"],
+        rule_flags=rule_flags,
+        similar_cases=similar_cases,
+        llm_narrative=narrative
+    )
+
+    return result
+
+@app.get("/history")
+def history(limit: int = 50):
+    return get_history(limit)
