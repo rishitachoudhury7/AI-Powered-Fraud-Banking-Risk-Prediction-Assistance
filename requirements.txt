@@ -11,3 +11,4 @@ groq
 shap 
 supabase
 requests
+python-dotenv
