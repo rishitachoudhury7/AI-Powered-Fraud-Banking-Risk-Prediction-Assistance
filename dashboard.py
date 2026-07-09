@@ -378,25 +378,105 @@ elif page == "📚 Investigation History":
         for h in history:
             risk = h["risk_tier"]
             table_data.append({
+                "Case ID": make_case_id(h),
                 "Time": h["created_at"][:19].replace("T", " "),
                 "Investigator": "AI Analyst (Groq)",
-                "Case ID": make_case_id(h),
                 "Status": risk,
                 "Recommendation": RISK_ACTION.get(risk, "Review"),
             })
         df = pd.DataFrame(table_data)
 
         risk_filter = st.multiselect("Filter by Status", ["High", "Medium", "Low"], default=["High", "Medium", "Low"])
-        filtered = df[df["Status"].isin(risk_filter)]
+        filtered_indices = [i for i, row in enumerate(table_data) if row["Status"] in risk_filter]
+        filtered_df = df.iloc[filtered_indices].reset_index(drop=True)
+        filtered_history = [history[i] for i in filtered_indices]
 
         def highlight_status(val):
             color = RISK_COLORS.get(val, "#64748b")
             return f'color: {color}; font-weight: 600'
 
-        st.dataframe(
-            filtered.style.map(highlight_status, subset=["Status"]),
-            use_container_width=True, hide_index=True
+        st.caption("Click a row to view full case details below.")
+        event = st.dataframe(
+            filtered_df.style.map(highlight_status, subset=["Status"]),
+            use_container_width=True,
+            hide_index=True,
+            on_select="rerun",
+            selection_mode="single-row",
         )
+
+        selected_rows = event.selection.rows if event and event.selection else []
+
+        if selected_rows:
+            idx = selected_rows[0]
+            item = filtered_history[idx]
+            case_id = filtered_df.iloc[idx]["Case ID"]
+            txn = item["transaction"]
+            risk = item["risk_tier"]
+            color = RISK_COLORS.get(risk, "#64748b")
+
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown('<div class="section-card">', unsafe_allow_html=True)
+            st.subheader(f"Case Details — {case_id}")
+
+            colA, colB, colC = st.columns(3)
+            with colA:
+                st.markdown("**Transaction Details**")
+                st.write(f"Type: `{txn['type']}`")
+                st.write(f"Amount: ₹{txn['amount']:,.2f}")
+                st.write(f"Step: {txn['step']}")
+            with colB:
+                st.markdown("**Origin Balance**")
+                st.write(f"Old: ₹{txn['oldbalanceOrg']:,.2f}")
+                st.write(f"New: ₹{txn['newbalanceOrig']:,.2f}")
+            with colC:
+                st.markdown("**Destination Balance**")
+                st.write(f"Old: ₹{txn['oldbalanceDest']:,.2f}")
+                st.write(f"New: ₹{txn['newbalanceDest']:,.2f}")
+
+            st.markdown("<br>", unsafe_allow_html=True)
+            colD, colE = st.columns(2)
+            with colD:
+                st.markdown(f'''<div class="result-card">
+                    <p class="label">Model Probability</p>
+                    <p class="value">{item["fraud_probability"]*100:.2f}%</p></div>''', unsafe_allow_html=True)
+            with colE:
+                st.markdown(f'''<div class="result-card">
+                    <p class="label">Final Verdict</p>
+                    <p class="value" style="color:{color}">{risk}</p></div>''', unsafe_allow_html=True)
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            if item.get("rule_flags"):
+                st.markdown("**🚩 Rule Flags**")
+                for flag in item["rule_flags"]:
+                    st.warning(flag)
+
+            if item.get("top_features"):
+                st.markdown("**📊 Top SHAP Features**")
+                shap_df = pd.DataFrame(item["top_features"])
+                shap_df["abs_impact"] = shap_df["impact"].abs()
+                shap_df = shap_df.sort_values("abs_impact", ascending=True)
+                shap_df["direction"] = shap_df["impact"].apply(lambda x: "Pushes toward Fraud" if x > 0 else "Pushes toward Legitimate")
+                fig = px.bar(
+                    shap_df, x="impact", y="feature", orientation="h", color="direction",
+                    color_discrete_map={"Pushes toward Fraud": "#ef4444", "Pushes toward Legitimate": "#3b82f6"}
+                )
+                fig.update_layout(height=220, margin=dict(l=10, r=10, t=10, b=10),
+                                   plot_bgcolor="#0d1526", paper_bgcolor="#0d1526", font_color="#cbd5e1",
+                                   legend=dict(orientation="h", yanchor="bottom", y=-0.4),
+                                   xaxis=dict(gridcolor="#1e293b"), yaxis=dict(gridcolor="#1e293b"))
+                st.plotly_chart(fig, use_container_width=True)
+
+            if item.get("similar_cases"):
+                st.markdown("**📁 Similar Historical Cases**")
+                for c in item["similar_cases"]:
+                    st.info(f"{c['section']} — {c['similarity']*100:.1f}% match")
+
+            if item.get("llm_narrative"):
+                st.markdown("**🧠 LLM Report**")
+                st.write(item["llm_narrative"])
+
+            st.markdown('</div>', unsafe_allow_html=True)
     else:
         st.info("No history yet.")
 
