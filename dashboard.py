@@ -217,29 +217,118 @@ elif page == "🔎 Investigate":
 
             risk = result["risk_tier"]
             prob = result["fraud_probability"]
-            action = RISK_ACTION.get(risk, "Review")
-            color = RISK_COLORS.get(risk, "#64748b")
             confidence = "High" if abs(prob - 0.5) > 0.35 or result.get("rule_flags") else "Medium"
 
             r1, r2, r3, r4 = st.columns(4)
+
+            # --------------------------------------------------
+            # Determine FINAL verdict from the LLM narrative
+            # --------------------------------------------------
+            final_risk = risk
+            narrative = result.get("llm_narrative", "").lower()
+            if "verdict: high" in narrative:
+                final_risk = "High"
+            elif "verdict: medium" in narrative:
+                final_risk = "Medium"
+            elif "verdict: low" in narrative:
+                final_risk = "Low"
+            final_color = RISK_COLORS.get(final_risk, "#64748b")
+
+            # --------------------------------------------------
+            # CARD 1 - FINAL RISK VERDICT
+            # --------------------------------------------------
             with r1:
-                st.markdown(f'''<div class="result-card">
-                    <p class="label">Risk Level</p>
-                    <p class="value" style="color:{color}">{risk}</p>
-                    <div class="risk-bar-bg"><div class="risk-bar-fill" style="width:{prob*100:.0f}%;background:{color}"></div></div>
-                    </div>''', unsafe_allow_html=True)
+                st.markdown(
+                    f"""
+                    <div class="result-card">
+                        <p class="label">Final Risk Verdict</p>
+                        <p class="value"
+                           style="color:{final_color};">
+                           {final_risk}
+                        </p>
+                        <div class="risk-bar-bg">
+                            <div class="risk-bar-fill"
+                                 style="width:{prob*100:.0f}%;
+                                        background:{final_color};">
+                            </div>
+                        </div>
+                        <p style="
+                            font-size:11px;
+                            color:#94a3b8;
+                            margin-top:8px;
+                            margin-bottom:0;
+                        ">
+                            ML Model Score:
+                            <b>{risk}</b>
+                            ({prob*100:.1f}%)
+                        </p>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+            # --------------------------------------------------
+            # CARD 2 - PROBABILITY
+            # --------------------------------------------------
             with r2:
-                st.markdown(f'''<div class="result-card">
-                    <p class="label">Probability</p>
-                    <p class="value">{prob*100:.1f}%</p></div>''', unsafe_allow_html=True)
+                st.markdown(
+                    f"""
+                    <div class="result-card">
+                        <p class="label">Fraud Probability</p>
+                        <p class="value">{prob*100:.1f}%</p>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+            # --------------------------------------------------
+            # CARD 3 - RECOMMENDATION
+            # --------------------------------------------------
             with r3:
-                st.markdown(f'''<div class="result-card">
-                    <p class="label">Recommendation</p>
-                    <p class="value" style="color:{color};font-size:17px">{action}</p></div>''', unsafe_allow_html=True)
+                recommendation = (
+                    "Escalate"
+                    if final_risk == "High"
+                    else "Review"
+                    if final_risk == "Medium"
+                    else "Approve"
+                )
+                rec_color = (
+                    "#ef4444"
+                    if final_risk == "High"
+                    else "#f59e0b"
+                    if final_risk == "Medium"
+                    else "#22c55e"
+                )
+                st.markdown(
+                    f"""
+                    <div class="result-card">
+                        <p class="label">Recommendation</p>
+                        <p class="value"
+                           style="color:{rec_color};
+                                  font-size:17px;">
+                           {recommendation}
+                        </p>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+            # --------------------------------------------------
+            # CARD 4 - CONFIDENCE
+            # --------------------------------------------------
             with r4:
-                st.markdown(f'''<div class="result-card">
-                    <p class="label">Confidence</p>
-                    <p class="value" style="font-size:17px">{confidence}</p></div>''', unsafe_allow_html=True)
+                st.markdown(
+                    f"""
+                    <div class="result-card">
+                        <p class="label">Confidence</p>
+                        <p class="value"
+                           style="font-size:17px;">
+                           {confidence}
+                        </p>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
             st.markdown("<br>", unsafe_allow_html=True)
 
