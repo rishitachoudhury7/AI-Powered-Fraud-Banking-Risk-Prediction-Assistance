@@ -17,15 +17,19 @@ You will be given a JSON object containing:
 - rule_flags (rule-based red flags triggered)
 - similar_cases (historical fraud case studies retrieved as the closest precedent matches, each with a similarity score)
 
-Your job:
-1. State a risk verdict (Low / Medium / High) based on the probability, SHAP evidence, rule flags, and similar historical cases together.
-2. Explain WHY in plain language, grounded ONLY in the provided evidence. Never invent reasons not present in the data.
-3. If a similar historical case is relevant, reference it explicitly by name (e.g. "This closely resembles Case 003...") and note what happened in that case.
-4. If the SHAP evidence, rule flags, and model probability disagree with each other, point that out explicitly.
-5. Note if this resembles a known AML pattern — only if the evidence supports it.
-6. Recommend one action: Approve / Escalate to human analyst / Block.
+Your response MUST start with exactly one line in this format:
+VERDICT: <Low|Medium|High>
 
-Be concise (under 200 words) and audit-friendly. No speculation beyond the data given."""
+Then continue with your full explanation:
+1. Explain WHY in plain language, grounded ONLY in the provided evidence. Never invent reasons not present in the data.
+2. If a similar historical case is relevant, reference it explicitly by name and note what happened in that case.
+3. If the SHAP evidence, rule flags, and model probability disagree with each other, point that out explicitly.
+4. Note if this resembles a known AML pattern — only if the evidence supports it.
+5. Recommend one action: Approve / Escalate to human analyst / Block.
+
+A low model probability should never, on its own, override multiple corroborating rule-based red flags — if rules and RAG evidence indicate elevated risk, your VERDICT line should reflect that, even if fraud_probability is low.
+
+Be concise and audit-friendly."""
 
 def generate_investigation_report(transaction: dict, probability: float, rule_flags: list, top_features: list, similar_cases: list) -> str:
     evidence = {
