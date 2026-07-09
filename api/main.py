@@ -38,24 +38,35 @@ def investigate(transaction: Transaction):
         similar_cases
     )
 
+    # Parse the LLM's verdict line, fall back to model-based tier if parsing fails
+    final_risk_tier = ml_result["risk_tier"]
+    narrative_body = narrative
+    if narrative.startswith("VERDICT:"):
+        first_line, _, rest = narrative.partition("\n")
+        verdict = first_line.replace("VERDICT:", "").strip()
+        if verdict in ["Low", "Medium", "High"]:
+            final_risk_tier = verdict
+        narrative_body = rest.strip()
+
     result = {
         "transaction": txn_dict,
         "fraud_probability": ml_result["fraud_probability"],
-        "risk_tier": ml_result["risk_tier"],
+        "model_risk_tier": ml_result["risk_tier"],
+        "risk_tier": final_risk_tier,
         "top_features": ml_result["top_features"],
         "rule_flags": rule_flags,
         "similar_cases": [{"section": c["section"], "similarity": round(c["similarity"], 3)} for c in similar_cases],
-        "llm_narrative": narrative
+        "llm_narrative": narrative_body
     }
 
     save_search(
         transaction=txn_dict,
         fraud_probability=ml_result["fraud_probability"],
-        risk_tier=ml_result["risk_tier"],
+        risk_tier=final_risk_tier,
         top_features=ml_result["top_features"],
         rule_flags=rule_flags,
         similar_cases=similar_cases,
-        llm_narrative=narrative
+        llm_narrative=narrative_body
     )
 
     return result
