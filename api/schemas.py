@@ -14,3 +14,6 @@ class PredictionResponse(BaseModel):
     fraud_probability: float
     risk_tier: str
     top_features: list[dict]
+
+class TransactionChain(BaseModel):
+    transactions: list[Transaction]
