@@ -57,3 +57,59 @@ def check_chain_rules(transactions: list[dict]) -> list[str]:
             flags.append("Chain originates from a near-total balance drain in the first hop")
 
     return flags
+
+
+from datetime import datetime
+
+def _parse_timestamp(ts: str):
+    if not ts:
+        return None
+    for fmt in ("%Y/%m/%d %H:%M", "%m/%d/%Y %H:%M", "%Y-%m-%d %H:%M:%S"):
+        try:
+            return datetime.strptime(ts, fmt)
+        except (ValueError, TypeError):
+            continue
+    return None
+
+def check_cycle(transactions: list[dict]) -> list[str]:
+    """Detect A -> B -> A round-trip cycles using account identity and timing."""
+    flags = []
+
+    accounts_seen = {}
+    for i, txn in enumerate(transactions):
+        orig = txn.get("nameOrig")
+        dest = txn.get("nameDest")
+        if not orig or not dest:
+            continue
+
+        if dest in accounts_seen:
+            earlier_idx, earlier_txn = accounts_seen[dest]
+            if earlier_txn.get("nameDest") == orig:
+                amt_diff = abs(txn["amount"] - earlier_txn["amount"])
+                same_amount = amt_diff < max(1.0, earlier_txn["amount"] * 0.01)
+
+                t1 = _parse_timestamp(earlier_txn.get("timestamp"))
+                t2 = _parse_timestamp(txn.get("timestamp"))
+                gap_note = ""
+                if t1 and t2:
+                    gap_days = (t2 - t1).days
+                    gap_note = f" ({gap_days} day(s) apart)"
+
+                amount_note = "identical amount" if same_amount else "differing amount (possible fee/conversion skim)"
+                flags.append(
+                    f"Cycle detected: Account {orig} → {dest} (hop {earlier_idx+1}) then {dest} → {orig} (hop {i+1}), {amount_note}{gap_note}"
+                )
+
+        accounts_seen[orig] = (i, txn)
+
+    return flags
+
+def check_currency_mismatch(transactions: list[dict]) -> list[str]:
+    """Flag transactions where paid and received currencies differ across a chain."""
+    flags = []
+    for i, txn in enumerate(transactions):
+        pay_cur = txn.get("payment_currency")
+        recv_cur = txn.get("receiving_currency")
+        if pay_cur and recv_cur and pay_cur != recv_cur:
+            flags.append(f"Hop {i+1}: currency conversion detected ({pay_cur} → {recv_cur}) — common in cross-border layering")
+    return flags
