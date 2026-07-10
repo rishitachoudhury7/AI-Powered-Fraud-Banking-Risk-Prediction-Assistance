@@ -59,13 +59,19 @@ hr { border-color: #1e293b; }
 RISK_COLORS = {"High": "#ef4444", "Medium": "#f59e0b", "Low": "#22c55e"}
 RISK_ACTION = {"High": "Escalate", "Medium": "Review", "Low": "Approve"}
 
+if "chain_hops" not in st.session_state:
+    st.session_state.chain_hops = [
+        {"step": 1, "type": "TRANSFER", "amount": 0.0, "oldbalanceOrg": 0.0,
+         "newbalanceOrig": 0.0, "oldbalanceDest": 0.0, "newbalanceDest": 0.0}
+    ]
+
 # ---------- SIDEBAR ----------
 with st.sidebar:
     st.markdown("### 🛡️ AI Fraud Investigation\n**& Compliance Assistant**")
     st.markdown("---")
     page = st.radio(
         "Navigation",
-        ["🏠 Dashboard", "🔎 Investigate", "📚 Investigation History", "⚙️ Settings"],
+        ["🏠 Dashboard", "🔎 Investigate", "🔗 Chain Investigation", "📚 Investigation History", "⚙️ Settings"],
         label_visibility="collapsed"
     )
     st.markdown("---")
@@ -84,6 +90,11 @@ def get_history(limit=100):
 
 def run_investigation(transaction):
     r = requests.post(f"{API_URL}/investigate", json=transaction, timeout=90)
+    r.raise_for_status()
+    return r.json()
+
+def run_chain_investigation(transactions):
+    r = requests.post(f"{API_URL}/investigate-chain", json={"transactions": transactions}, timeout=180)
     r.raise_for_status()
     return r.json()
 
@@ -366,6 +377,161 @@ elif page == "🔎 Investigate":
         else:
             st.markdown('<div class="section-card">', unsafe_allow_html=True)
             st.info("Fill out the form and click Run Investigation to see results here.")
+            st.markdown('</div>', unsafe_allow_html=True)
+
+
+# ================= CHAIN INVESTIGATION =================
+elif page == "🔗 Chain Investigation":
+    st.title("Multi-Hop Transaction Chain Investigation")
+    st.caption("Analyze a sequence of linked transactions (e.g. TRANSFER → CASH_OUT) to detect patterns invisible to single-transaction scoring.")
+
+    col_form, col_result = st.columns([1, 1.3])
+
+    with col_form:
+        st.markdown('<div class="section-card">', unsafe_allow_html=True)
+        st.subheader(f"Transaction Chain ({len(st.session_state.chain_hops)} hops)")
+
+        for i, hop in enumerate(st.session_state.chain_hops):
+            with st.expander(f"Hop {i+1}: {hop['type']} — ₹{hop['amount']:,.2f}", expanded=(i == len(st.session_state.chain_hops) - 1)):
+                c1, c2 = st.columns(2)
+                with c1:
+                    hop["type"] = st.selectbox(
+                        "Transaction Type", ["CASH_OUT", "TRANSFER", "CASH_IN", "DEBIT", "PAYMENT"],
+                        index=["CASH_OUT", "TRANSFER", "CASH_IN", "DEBIT", "PAYMENT"].index(hop["type"]),
+                        key=f"type_{i}"
+                    )
+                with c2:
+                    hop["step"] = st.number_input("Step", min_value=0, value=hop["step"], key=f"step_{i}")
+
+                hop["amount"] = st.number_input("Amount (₹)", min_value=0.0, value=hop["amount"], format="%.2f", key=f"amount_{i}")
+
+                c3, c4 = st.columns(2)
+                with c3:
+                    hop["oldbalanceOrg"] = st.number_input("Old Balance (Origin)", min_value=0.0, value=hop["oldbalanceOrg"], format="%.2f", key=f"oldorg_{i}")
+                with c4:
+                    hop["newbalanceOrig"] = st.number_input("New Balance (Origin)", min_value=0.0, value=hop["newbalanceOrig"], format="%.2f", key=f"neworg_{i}")
+
+                c5, c6 = st.columns(2)
+                with c5:
+                    hop["oldbalanceDest"] = st.number_input("Old Balance (Destination)", min_value=0.0, value=hop["oldbalanceDest"], format="%.2f", key=f"olddest_{i}")
+                with c6:
+                    hop["newbalanceDest"] = st.number_input("New Balance (Destination)", min_value=0.0, value=hop["newbalanceDest"], format="%.2f", key=f"newdest_{i}")
+
+                if len(st.session_state.chain_hops) > 1:
+                    if st.button(f"🗑️ Remove Hop {i+1}", key=f"remove_{i}"):
+                        st.session_state.chain_hops.pop(i)
+                        st.rerun()
+
+        bcol1, bcol2 = st.columns(2)
+        with bcol1:
+            if st.button("➕ Add Another Hop", use_container_width=True):
+                last = st.session_state.chain_hops[-1]
+                st.session_state.chain_hops.append({
+                    "step": last["step"], "type": "CASH_OUT", "amount": 0.0,
+                    "oldbalanceOrg": last["newbalanceDest"], "newbalanceOrig": 0.0,
+                    "oldbalanceDest": 0.0, "newbalanceDest": 0.0
+                })
+                st.rerun()
+        with bcol2:
+            run_chain = st.button("🔗 Run Chain Investigation", type="primary", use_container_width=True)
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    if run_chain:
+        with col_result:
+            status = st.empty()
+            steps_msgs = [
+                "🧠 Running XGBoost on each hop...",
+                "📊 Computing SHAP values...",
+                "🔎 Matching historical cases...",
+                "🔗 Analyzing cross-transaction patterns...",
+                "🤖 Generating chain summary...",
+            ]
+            try:
+                for msg in steps_msgs:
+                    status.info(msg)
+                    time.sleep(0.5)
+                chain_result = run_chain_investigation(st.session_state.chain_hops)
+                status.empty()
+                st.session_state["last_chain_result"] = chain_result
+                get_history.clear()
+            except Exception as e:
+                status.empty()
+                st.error(f"Chain investigation failed: {e}")
+
+    with col_result:
+        chain_result = st.session_state.get("last_chain_result")
+        if chain_result:
+            st.markdown('<div class="section-card">', unsafe_allow_html=True)
+            st.subheader("Chain Summary")
+
+            overall = chain_result["overall_risk"]
+            overall_color = RISK_COLORS.get(overall, "#64748b")
+
+            s1, s2, s3 = st.columns(3)
+            with s1:
+                st.markdown(f'''<div class="result-card">
+                    <p class="label">Overall Risk</p>
+                    <p class="value" style="color:{overall_color}">{overall}</p></div>''', unsafe_allow_html=True)
+            with s2:
+                st.markdown(f'''<div class="result-card">
+                    <p class="label">Hop Count</p>
+                    <p class="value">{chain_result["hop_count"]}</p></div>''', unsafe_allow_html=True)
+            with s3:
+                st.markdown(f'''<div class="result-card">
+                    <p class="label">Avg Probability</p>
+                    <p class="value">{chain_result["average_probability"]*100:.1f}%</p></div>''', unsafe_allow_html=True)
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            if chain_result.get("chain_flags"):
+                st.markdown("**🚩 Chain-Level Red Flags** (patterns only visible across hops)")
+                for flag in chain_result["chain_flags"]:
+                    st.error(flag)
+            else:
+                st.info("No cross-transaction patterns detected.")
+
+            st.markdown("**📈 Risk Trend Across Hops**")
+            hop_probs = [h["fraud_probability"] for h in chain_result["hops"]]
+            hop_labels = [f"Hop {i+1}" for i in range(len(hop_probs))]
+            trend_fig = px.line(x=hop_labels, y=hop_probs, markers=True)
+            trend_fig.update_traces(line_color="#3b82f6")
+            trend_fig.update_layout(
+                height=220, margin=dict(l=10, r=10, t=10, b=10),
+                plot_bgcolor="#0d1526", paper_bgcolor="#0d1526", font_color="#cbd5e1",
+                xaxis=dict(gridcolor="#1e293b", title=""), yaxis=dict(gridcolor="#1e293b", title="Fraud Probability")
+            )
+            st.plotly_chart(trend_fig, use_container_width=True)
+
+            st.markdown("**🔍 Individual Hop Details**")
+            for i, hop in enumerate(chain_result["hops"]):
+                hop_color = RISK_COLORS.get(hop["risk_tier"], "#64748b")
+                with st.expander(f"Hop {i+1}: {hop['transaction']['type']} — ₹{hop['transaction']['amount']:,.2f} — {hop['risk_tier']} Risk"):
+                    hc1, hc2 = st.columns(2)
+                    with hc1:
+                        st.write(f"**Model Probability:** {hop['fraud_probability']*100:.2f}%")
+                        st.write(f"**Final Verdict:** {hop['risk_tier']}")
+                    with hc2:
+                        st.write(f"**Model-only tier:** {hop['model_risk_tier']}")
+
+                    if hop.get("rule_flags"):
+                        st.markdown("*Rule Flags:*")
+                        for flag in hop["rule_flags"]:
+                            st.warning(flag)
+
+                    if hop.get("similar_cases"):
+                        st.markdown("*Similar Cases:*")
+                        for c in hop["similar_cases"]:
+                            st.info(f"{c['section']} — {c['similarity']*100:.1f}% match")
+
+                    if hop.get("llm_narrative"):
+                        st.markdown("*Analyst Report:*")
+                        st.write(hop["llm_narrative"])
+
+            st.markdown('</div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<div class="section-card">', unsafe_allow_html=True)
+            st.info("Build a transaction chain on the left and click Run Chain Investigation.")
             st.markdown('</div>', unsafe_allow_html=True)
 
 # ================= HISTORY =================
