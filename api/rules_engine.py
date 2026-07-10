@@ -56,6 +56,9 @@ def check_chain_rules(transactions: list[dict]) -> list[str]:
         if transactions[0]["oldbalanceOrg"] - transactions[0].get("newbalanceOrig", 0) >= transactions[0]["oldbalanceOrg"] * 0.9:
             flags.append("Chain originates from a near-total balance drain in the first hop")
 
+    flags.extend(check_cycle(transactions))
+    flags.extend(check_currency_mismatch(transactions))
+    
     return flags
 
 
