@@ -195,15 +195,43 @@ elif page == "🔎 Investigate":
             with c6:
                 new_dest = st.number_input("New Balance (Destination)", min_value=0.0, value=0.0, format="%.2f")
 
+            st.markdown("**Account & Metadata (optional, enables cycle detection)**")
+            c7, c8 = st.columns(2)
+            with c7:
+                name_orig = st.text_input("Origin Account ID")
+            with c8:
+                name_dest = st.text_input("Destination Account ID")
+
+            c9, c10 = st.columns(2)
+            with c9:
+                timestamp = st.text_input("Timestamp (YYYY/MM/DD HH:MM)")
+            with c10:
+                payment_format = st.selectbox("Payment Format", ["", "ACH", "Wire", "Credit Card", "Cheque", "Cash"])
+
+            c11, c12 = st.columns(2)
+            with c11:
+                payment_currency = st.text_input("Payment Currency")
+            with c12:
+                receiving_currency = st.text_input("Receiving Currency")
+
             submitted = st.form_submit_button("🔍 Run Investigation", use_container_width=True)
+
         st.markdown('</div>', unsafe_allow_html=True)
 
     if submitted:
         transaction = {
             "step": int(step), "type": txn_type, "amount": amount,
             "oldbalanceOrg": old_orig, "newbalanceOrig": new_orig,
-            "oldbalanceDest": old_dest, "newbalanceDest": new_dest
+            "oldbalanceDest": old_dest, "newbalanceDest": new_dest,
+            "nameOrig": name_orig or None,
+            "nameDest": name_dest or None,
+            "timestamp": timestamp or None,
+            "payment_format": payment_format or None,
+            "payment_currency": payment_currency or None,
+            "receiving_currency": receiving_currency or None,
         }
+
+
         with col2:
             status = st.empty()
             steps = [
