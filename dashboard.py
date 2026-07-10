@@ -181,7 +181,7 @@ elif page == "🔎 Investigate":
             with c2:
                 step = st.number_input("Step", min_value=0, value=1)
 
-            amount = st.number_input("Amount (₹)", min_value=0.0, value=0.0, format="%.2f")
+            amount = st.number_input("Amount", min_value=0.0, value=0.0, format="%.2f")
 
             c3, c4 = st.columns(2)
             with c3:
