@@ -25,3 +25,35 @@ def check_rules(transaction: dict) -> list[str]:
         flags.append(f"High-value {txn_type} transaction (>200,000)")
 
     return flags
+
+def check_chain_rules(transactions: list[dict]) -> list[str]:
+    """Detect patterns that only emerge across a sequence of linked transactions."""
+    flags = []
+
+    if len(transactions) < 2:
+        return flags
+
+    total_amount = sum(t["amount"] for t in transactions)
+
+    # Full pass-through: money enters and leaves an account in the same chain
+    for i in range(len(transactions) - 1):
+        current = transactions[i]
+        nxt = transactions[i + 1]
+        if (current["type"] == "TRANSFER" and nxt["type"] == "CASH_OUT"
+                and abs(current["amount"] - nxt["amount"]) < 1.0):
+            flags.append(f"Hop {i+1}→{i+2}: TRANSFER immediately followed by CASH_OUT of nearly identical amount — classic mule pass-through pattern")
+
+    # Structuring: many similar-sized transactions
+    if len(transactions) >= 4:
+        amounts = [t["amount"] for t in transactions]
+        avg = sum(amounts) / len(amounts)
+        similar = sum(1 for a in amounts if abs(a - avg) / avg < 0.15) if avg > 0 else 0
+        if similar >= 4:
+            flags.append(f"{similar} transactions of similar size detected in this chain — possible structuring pattern")
+
+    # Rapid full drain across the chain
+    if transactions[0]["oldbalanceOrg"] > 0 and transactions[-1]["newbalanceDest"] >= 0:
+        if transactions[0]["oldbalanceOrg"] - transactions[0].get("newbalanceOrig", 0) >= transactions[0]["oldbalanceOrg"] * 0.9:
+            flags.append("Chain originates from a near-total balance drain in the first hop")
+
+    return flags
