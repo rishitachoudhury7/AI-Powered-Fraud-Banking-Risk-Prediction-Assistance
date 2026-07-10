@@ -59,10 +59,14 @@ hr { border-color: #1e293b; }
 RISK_COLORS = {"High": "#ef4444", "Medium": "#f59e0b", "Low": "#22c55e"}
 RISK_ACTION = {"High": "Escalate", "Medium": "Review", "Low": "Approve"}
 
+# ---------- STEP 5: default hop template now includes optional
+# account/metadata fields so every hop dict has a consistent shape ----------
 if "chain_hops" not in st.session_state:
     st.session_state.chain_hops = [
         {"step": 1, "type": "TRANSFER", "amount": 0.0, "oldbalanceOrg": 0.0,
-         "newbalanceOrig": 0.0, "oldbalanceDest": 0.0, "newbalanceDest": 0.0}
+         "newbalanceOrig": 0.0, "oldbalanceDest": 0.0, "newbalanceDest": 0.0,
+         "nameOrig": "", "nameDest": "", "timestamp": "",
+         "payment_format": "", "payment_currency": "", "receiving_currency": ""}
     ]
 
 # ---------- SIDEBAR ----------
@@ -417,6 +421,34 @@ elif page == "🔗 Chain Investigation":
                 with c6:
                     hop["newbalanceDest"] = st.number_input("New Balance (Destination)", min_value=0.0, value=hop["newbalanceDest"], format="%.2f", key=f"newdest_{i}")
 
+                # ---------- STEP 5: optional account & metadata fields ----------
+                # These enable true account-linked hop matching and cycle
+                # detection (nameDest of one hop == nameOrig of the next),
+                # instead of relying on row/hop order alone.
+                st.markdown("**Account & Metadata (optional, enables cycle detection)**")
+
+                c7, c8 = st.columns(2)
+                with c7:
+                    hop["nameOrig"] = st.text_input("Origin Account ID", value=hop.get("nameOrig", ""), key=f"nameorig_{i}")
+                with c8:
+                    hop["nameDest"] = st.text_input("Destination Account ID", value=hop.get("nameDest", ""), key=f"namedest_{i}")
+
+                c9, c10 = st.columns(2)
+                with c9:
+                    hop["timestamp"] = st.text_input("Timestamp (YYYY/MM/DD HH:MM)", value=hop.get("timestamp", ""), key=f"timestamp_{i}")
+                with c10:
+                    hop["payment_format"] = st.selectbox(
+                        "Payment Format", ["", "ACH", "Wire", "Credit Card", "Cheque"],
+                        index=["", "ACH", "Wire", "Credit Card", "Cheque"].index(hop.get("payment_format", "")),
+                        key=f"payfmt_{i}"
+                    )
+
+                c11, c12 = st.columns(2)
+                with c11:
+                    hop["payment_currency"] = st.text_input("Payment Currency", value=hop.get("payment_currency", ""), key=f"paycur_{i}")
+                with c12:
+                    hop["receiving_currency"] = st.text_input("Receiving Currency", value=hop.get("receiving_currency", ""), key=f"reccur_{i}")
+
                 if len(st.session_state.chain_hops) > 1:
                     if st.button(f"🗑️ Remove Hop {i+1}", key=f"remove_{i}"):
                         st.session_state.chain_hops.pop(i)
@@ -429,7 +461,12 @@ elif page == "🔗 Chain Investigation":
                 st.session_state.chain_hops.append({
                     "step": last["step"], "type": "CASH_OUT", "amount": 0.0,
                     "oldbalanceOrg": last["newbalanceDest"], "newbalanceOrig": 0.0,
-                    "oldbalanceDest": 0.0, "newbalanceDest": 0.0
+                    "oldbalanceDest": 0.0, "newbalanceDest": 0.0,
+                    # STEP 5: carry destination account forward as the next
+                    # hop's origin by default, since a real hop should chain
+                    # through the same account.
+                    "nameOrig": last.get("nameDest", ""), "nameDest": "", "timestamp": "",
+                    "payment_format": "", "payment_currency": "", "receiving_currency": ""
                 })
                 st.rerun()
         with bcol2:
