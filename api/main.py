@@ -40,7 +40,7 @@ def investigate(transaction: Transaction):
         ml_result["fraud_probability"],
         rule_flags,
         ml_result["top_features"],
-        similar_cases
+        similar_cases,
         strong_override
     )
 
@@ -72,7 +72,7 @@ def investigate(transaction: Transaction):
         risk_tier=final_risk_tier,
         top_features=ml_result["top_features"],
         rule_flags=rule_flags,
-        strong_override:strong_override
+        strong_override=strong_override,
         similar_cases=similar_cases,
         llm_narrative=narrative_body
     )
@@ -120,7 +120,7 @@ def investigate_chain(chain: TransactionChain):
         save_search(
             transaction=txn_dict, fraud_probability=ml_result["fraud_probability"],
             risk_tier=final_risk_tier, top_features=ml_result["top_features"],
-            rule_flags=rule_flags, similar_cases=similar_cases, llm_narrative=narrative_body
+            rule_flags=rule_flags, strong_override=strong_override, similar_cases=similar_cases, llm_narrative=narrative_body
         )
 
     raw_transactions = [t.dict() for t in chain.transactions]
