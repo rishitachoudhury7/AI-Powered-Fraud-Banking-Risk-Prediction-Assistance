@@ -27,16 +27,25 @@ Then continue with your full explanation:
 4. Note if this resembles a known AML pattern — only if the evidence supports it.
 5. Recommend one action: Approve / Escalate to human analyst / Block.
 
-A low model probability should never, on its own, override multiple corroborating rule-based red flags — if rules and RAG evidence indicate elevated risk, your VERDICT line should reflect that, even if fraud_probability is low.
+Use the ML fraud probability as the primary indicator of risk.
 
+Only escalate the verdict above what the raw probability suggests if:
+
+• 2 or more independent rule flags corroborate each other (flag_count >= 2), OR
+• At least one rule flag is supported by a historical case with similarity >= 0.60.
+
+A single weak rule flag alone should NOT override a low fraud probability.
+
+If the evidence is mixed or inconclusive, choose the lower risk level and explain the uncertainty rather than assuming fraud.
 Be concise and audit-friendly."""
 
-def generate_investigation_report(transaction: dict, probability: float, rule_flags: list, top_features: list, similar_cases: list) -> str:
+def generate_investigation_report(transaction: dict, probability: float, rule_flags: list, top_features: list, similar_cases: list, strong_override) -> str:
     evidence = {
         "transaction": transaction,
         "fraud_probability": round(probability, 4),
         "top_features": top_features,
         "rule_flags": rule_flags,
+        "strong_override": strong_override,
         "similar_cases": [
             {"section": c["section"], "similarity": round(c["similarity"], 3), "summary": c["content"][:400]}
             for c in similar_cases
