@@ -8,13 +8,15 @@ load_dotenv(dotenv_path=env_path, override=True)
 supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
 
 def save_search(transaction: dict, fraud_probability: float, risk_tier: str,
-                top_features: list, rule_flags: list, similar_cases: list, llm_narrative: str):
+                top_features: list, rule_flags: list, similar_cases: list,
+                llm_narrative: str, strong_override: bool = False):
     supabase.table("search_history").insert({
         "transaction": transaction,
         "fraud_probability": fraud_probability,
         "risk_tier": risk_tier,
         "top_features": top_features,
         "rule_flags": rule_flags,
+        "strong_override": strong_override,
         "similar_cases": [
             {"section": c["section"], "similarity": c["similarity"]} for c in similar_cases
         ],
