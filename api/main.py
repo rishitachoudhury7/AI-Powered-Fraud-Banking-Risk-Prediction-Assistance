@@ -32,12 +32,16 @@ def investigate(transaction: Transaction):
     rule_flags = check_rules(txn_dict)
     similar_cases = retrieve_similar_cases(txn_dict, rule_flags)
 
+    #New
+    strong_override = len(rule_flags) >= 2
+
     narrative = generate_investigation_report(
         txn_dict,
         ml_result["fraud_probability"],
         rule_flags,
         ml_result["top_features"],
         similar_cases
+        strong_override
     )
 
     # Parse the LLM's verdict line, fall back to model-based tier if parsing fails
