@@ -60,6 +60,7 @@ def investigate(transaction: Transaction):
         "model_risk_tier": ml_result["risk_tier"],
         "risk_tier": final_risk_tier,
         "top_features": ml_result["top_features"],
+        "strong_override": strong_override,
         "rule_flags": rule_flags,
         "similar_cases": [{"section": c["section"], "similarity": round(c["similarity"], 3)} for c in similar_cases],
         "llm_narrative": narrative_body
@@ -71,6 +72,7 @@ def investigate(transaction: Transaction):
         risk_tier=final_risk_tier,
         top_features=ml_result["top_features"],
         rule_flags=rule_flags,
+        strong_override:strong_override
         similar_cases=similar_cases,
         llm_narrative=narrative_body
     )
@@ -90,7 +92,7 @@ def investigate_chain(chain: TransactionChain):
 
         narrative = generate_investigation_report(
             txn_dict, ml_result["fraud_probability"], rule_flags,
-            ml_result["top_features"], similar_cases
+            ml_result["top_features"], similar_cases, strong_override
         )
 
         final_risk_tier = ml_result["risk_tier"]
@@ -108,6 +110,7 @@ def investigate_chain(chain: TransactionChain):
             "model_risk_tier": ml_result["risk_tier"],
             "risk_tier": final_risk_tier,
             "top_features": ml_result["top_features"],
+            "strong_override": strong_override,
             "rule_flags": rule_flags,
             "similar_cases": [{"section": c["section"], "similarity": round(c["similarity"], 3)} for c in similar_cases],
             "llm_narrative": narrative_body
