@@ -90,6 +90,8 @@ def investigate_chain(chain: TransactionChain):
         rule_flags = check_rules(txn_dict)
         similar_cases = retrieve_similar_cases(txn_dict, rule_flags)
 
+        strong_override = len(rule_flags) >= 2
+
         narrative = generate_investigation_report(
             txn_dict, ml_result["fraud_probability"], rule_flags,
             ml_result["top_features"], similar_cases, strong_override
