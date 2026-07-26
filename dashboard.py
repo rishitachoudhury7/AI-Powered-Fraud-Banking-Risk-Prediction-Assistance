@@ -86,7 +86,7 @@ with st.sidebar:
 @st.cache_data(ttl=30)
 def get_history(limit=100):
     try:
-        r = requests.get(f"{API_URL}/history", params={"limit": limit}, timeout=60)
+        r = requests.get(f"{API_URL}/history", params={"limit": limit}, timeout=180)
         r.raise_for_status()
         return r.json()
     except Exception as e:
@@ -94,7 +94,7 @@ def get_history(limit=100):
         return []
 
 def run_investigation(transaction):
-    r = requests.post(f"{API_URL}/investigate", json=transaction, timeout=90)
+    r = requests.post(f"{API_URL}/investigate", json=transaction, timeout=180)
     r.raise_for_status()
     return r.json()
 
