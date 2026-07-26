@@ -111,7 +111,8 @@ if page == "🏠 Dashboard":
     st.title("AI Fraud Investigation & Compliance Assistant")
     st.caption("Intelligent Transaction Monitoring and AML Risk Analysis")
 
-    history = get_history(200)
+    with st.spinner("Waking up the backend... the API is on Render's free tier, so first load can take up to a minute."):
+        history = get_history(200)
 
     total = len(history)
     high = sum(1 for h in history if h["risk_tier"] == "High")
@@ -602,7 +603,8 @@ elif page == "🔗 Chain Investigation":
 # ================= HISTORY =================
 elif page == "📚 Investigation History":
     st.title("Investigation History")
-    history = get_history(200)
+    with st.spinner("Waking up the backend... the API is on Render's free tier, so first load can take up to a minute."):
+        history = get_history(200)
 
     if history:
         table_data = []
