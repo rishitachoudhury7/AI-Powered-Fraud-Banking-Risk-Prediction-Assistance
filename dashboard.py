@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 import time
 import hashlib
+import math
 from datetime import datetime
 
 API_URL = "https://fraud-detection-zgeo.onrender.com"
@@ -629,20 +630,52 @@ elif page == "📚 Investigation History":
             return f'color: {color}; font-weight: 600'
 
         st.caption("Click a row to view full case details below.")
+
+        # ---------- PAGINATION ----------
+        PAGE_SIZE = 50
+        total_rows = len(filtered_df)
+        total_pages = max(1, math.ceil(total_rows / PAGE_SIZE))
+
+        if "history_page" not in st.session_state:
+            st.session_state.history_page = 0
+        # Keep page in range if the filter changed the row count
+        st.session_state.history_page = min(st.session_state.history_page, total_pages - 1)
+        st.session_state.history_page = max(st.session_state.history_page, 0)
+
+        page = st.session_state.history_page
+        start = page * PAGE_SIZE
+        end = min(start + PAGE_SIZE, total_rows)
+
+        page_df = filtered_df.iloc[start:end].reset_index(drop=True)
+        page_history = filtered_history[start:end]
+
         event = st.dataframe(
-            filtered_df.style.map(highlight_status, subset=["Status"]),
+            page_df.style.map(highlight_status, subset=["Status"]),
             use_container_width=True,
             hide_index=True,
             on_select="rerun",
             selection_mode="single-row",
         )
 
+        nav_col1, nav_col2, nav_col3 = st.columns([1, 2, 1])
+        with nav_col1:
+            if st.button("←", disabled=(page == 0), key="history_prev"):
+                st.session_state.history_page -= 1
+                st.rerun()
+        with nav_col2:
+            range_label = f"{start + 1}–{end} of {total_rows}" if total_rows else "0 of 0"
+            st.markdown(f"<div style='text-align:center; padding-top:6px;'>{range_label}</div>", unsafe_allow_html=True)
+        with nav_col3:
+            if st.button("→", disabled=(page >= total_pages - 1), key="history_next"):
+                st.session_state.history_page += 1
+                st.rerun()
+
         selected_rows = event.selection.rows if event and event.selection else []
 
         if selected_rows:
             idx = selected_rows[0]
-            item = filtered_history[idx]
-            case_id = filtered_df.iloc[idx]["Case ID"]
+            item = page_history[idx]
+            case_id = page_df.iloc[idx]["Case ID"]
             txn = item["transaction"]
             risk = item["risk_tier"]
             color = RISK_COLORS.get(risk, "#64748b")
