@@ -2,7 +2,7 @@
 
 An XGBoost-based fraud detection system trained on 6.3M+ financial transactions, deployed as an interactive Streamlit app for real-time fraud risk scoring.
 
-🔗 **Live app:** [frauddetection-wkqeksfyxo2msylcficcwj.streamlit.app](https://frauddetection-wkqeksfyxo2msylcficcwj.streamlit.app/)
+🔗 **Live app:** [[frauddetection-wkqeksfyxo2msylcficcwj.streamlit.app](https://frauddetection-wkqeksfyxo2msylcficcwj.streamlit.app/)](https://rishitachoudhury7-fraud-detection-dashboard-hqxcnk.streamlit.app/)
 
 ---
 
