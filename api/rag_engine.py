@@ -27,6 +27,19 @@ def build_query_text(transaction: dict, rule_flags: list) -> str:
         f"Origin balance went from {transaction['oldbalanceOrg']} to {transaction['newbalanceOrig']}.",
         f"Destination balance went from {transaction['oldbalanceDest']} to {transaction['newbalanceDest']}."
     ]
+
+    cred_change_mins = transaction.get("minutes_since_credential_change")
+    if cred_change_mins is not None:
+        parts.append(f"Occurred {cred_change_mins:.0f} minutes after a credential or contact-detail change.")
+
+    if transaction.get("is_first_transaction_type_for_account"):
+        parts.append(f"First-ever {transaction['type']} transaction for this account.")
+
+    pay_cur = transaction.get("payment_currency")
+    recv_cur = transaction.get("receiving_currency")
+    if pay_cur and recv_cur and pay_cur != recv_cur:
+        parts.append(f"Currency conversion: {pay_cur} to {recv_cur}.")
+
     if rule_flags:
         parts.append("Red flags: " + "; ".join(rule_flags) + ".")
     return " ".join(parts)
