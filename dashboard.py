@@ -67,7 +67,9 @@ if "chain_hops" not in st.session_state:
         {"step": 1, "type": "TRANSFER", "amount": 0.0, "oldbalanceOrg": 0.0,
          "newbalanceOrig": 0.0, "oldbalanceDest": 0.0, "newbalanceDest": 0.0,
          "nameOrig": "", "nameDest": "", "timestamp": "",
-         "payment_format": "", "payment_currency": "", "receiving_currency": ""}
+         "payment_format": "", "payment_currency": "", "receiving_currency": "",
+         "had_cred_change": False, "minutes_since_credential_change": 15.0,
+         "is_first_transaction_type_for_account": False}
     ]
 
 # ---------- SIDEBAR ----------
@@ -216,6 +218,17 @@ elif page == "🔎 Investigate":
             with c12:
                 receiving_currency = st.text_input("Receiving Currency")
 
+            st.markdown("**Account Context (optional, enables takeover detection)**")
+            c13, c14 = st.columns(2)
+            with c13:
+                had_cred_change = st.checkbox("Recent credential/contact-detail change?")
+                mins_since_cred_change = st.number_input(
+                    "Minutes since that change", min_value=0.0, value=15.0,
+                    disabled=not had_cred_change
+                )
+            with c14:
+                is_first_txn_type = st.checkbox("First-ever transaction of this type for the account")
+
             submitted = st.form_submit_button("🔍 Run Investigation", use_container_width=True)
 
         st.markdown('</div>', unsafe_allow_html=True)
@@ -231,6 +244,8 @@ elif page == "🔎 Investigate":
             "payment_format": payment_format or None,
             "payment_currency": payment_currency or None,
             "receiving_currency": receiving_currency or None,
+            "minutes_since_credential_change": mins_since_cred_change if had_cred_change else None,
+            "is_first_transaction_type_for_account": is_first_txn_type,
         }
 
 
@@ -479,6 +494,24 @@ elif page == "🔗 Chain Investigation":
                 with c12:
                     hop["receiving_currency"] = st.text_input("Receiving Currency", value=hop.get("receiving_currency", ""), key=f"reccur_{i}")
 
+                # ---------- Account context fields for takeover/velocity detection ----------
+                c13, c14 = st.columns(2)
+                with c13:
+                    hop["had_cred_change"] = st.checkbox(
+                        "Recent credential/contact-detail change?",
+                        value=hop.get("had_cred_change", False), key=f"hadcred_{i}"
+                    )
+                    hop["minutes_since_credential_change"] = st.number_input(
+                        "Minutes since that change", min_value=0.0,
+                        value=hop.get("minutes_since_credential_change", 15.0),
+                        disabled=not hop["had_cred_change"], key=f"credmins_{i}"
+                    )
+                with c14:
+                    hop["is_first_transaction_type_for_account"] = st.checkbox(
+                        "First-ever transaction of this type for the account",
+                        value=hop.get("is_first_transaction_type_for_account", False), key=f"firsttype_{i}"
+                    )
+
                 if len(st.session_state.chain_hops) > 1:
                     if st.button(f"🗑️ Remove Hop {i+1}", key=f"remove_{i}"):
                         st.session_state.chain_hops.pop(i)
@@ -492,11 +525,10 @@ elif page == "🔗 Chain Investigation":
                     "step": last["step"], "type": "CASH_OUT", "amount": 0.0,
                     "oldbalanceOrg": last["newbalanceDest"], "newbalanceOrig": 0.0,
                     "oldbalanceDest": 0.0, "newbalanceDest": 0.0,
-                    # STEP 5: carry destination account forward as the next
-                    # hop's origin by default, since a real hop should chain
-                    # through the same account.
                     "nameOrig": last.get("nameDest", ""), "nameDest": "", "timestamp": "",
-                    "payment_format": "", "payment_currency": "", "receiving_currency": ""
+                    "payment_format": "", "payment_currency": "", "receiving_currency": "",
+                    "had_cred_change": False, "minutes_since_credential_change": 15.0,
+                    "is_first_transaction_type_for_account": False
                 })
                 st.rerun()
         with bcol2:
@@ -518,7 +550,14 @@ elif page == "🔗 Chain Investigation":
                 for msg in steps_msgs:
                     status.info(msg)
                     time.sleep(0.5)
-                chain_result = run_chain_investigation(st.session_state.chain_hops)
+                chain_payload = [
+                    {
+                        **{k: v for k, v in hop.items() if k != "had_cred_change"},
+                        "minutes_since_credential_change": hop["minutes_since_credential_change"] if hop.get("had_cred_change") else None,
+                    }
+                    for hop in st.session_state.chain_hops
+                ]
+                chain_result = run_chain_investigation(chain_payload)
                 status.empty()
                 st.session_state["last_chain_result"] = chain_result
                 get_history.clear()
