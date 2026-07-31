@@ -73,6 +73,48 @@ A long-standing customer account with a stable high balance initiated a CASH_OUT
 
 ---
 
+## Case 006: Routine PAYMENT Transaction Correctly Scored Low
+
+**Pattern summary:** Transaction type: PAYMENT, amount: moderate. A merchant payment with no fraud indicators, included to anchor the model's expected baseline for this transaction type.
+
+A customer account with a stable balance history made a PAYMENT of approximately 8,500 to a known merchant category, reducing the origin balance by exactly the payment amount. The destination balance fields were unpopulated (as is standard for PAYMENT transactions in this system, where the counterparty is a merchant rather than a tracked account).
+
+**Outcome:** No rule flags triggered. Model score was low, consistent with expectations. Transaction processed normally with no analyst review.
+
+**Key indicators present:** Origin balance reduced by exactly the payment amount, no destination account balance fields, amount consistent with typical spending pattern for the account.
+
+**Lesson for automated systems:** PAYMENT transactions are structurally different from TRANSFER/CASH_OUT — funds leave the institution's tracked account graph entirely rather than moving to another monitored account. Fraud is rare in this category, but a low model score here should not be over-interpreted as a strong "safe" signal for other transaction types; it reflects PAYMENT's low base rate, not general model reliability. Analysts should be aware the model has very little fraud-labeled PAYMENT data to learn from, so a genuinely fraudulent PAYMENT (e.g., a hijacked recurring billing setup) may go under-scored simply because the model has rarely seen a positive example of this type.
+
+---
+
+## Case 007: CASH_IN Deposit With No Outbound Risk
+
+**Pattern summary:** Transaction type: CASH_IN, amount: large. An inbound deposit, included to document why CASH_IN alone is not a meaningful fraud signal in this system.
+
+An account received a CASH_IN deposit of approximately 60,000, increasing its balance accordingly. No outbound activity followed within the observed window.
+
+**Outcome:** No rule flags triggered (the rules engine is designed around outbound balance depletion, which does not apply here). Model score was low.
+
+**Key indicators present:** Inbound-only balance change, no corresponding outbound transaction in the same window.
+
+**Lesson for automated systems:** CASH_IN transactions on their own do not move funds out of the institution and so carry minimal standalone fraud risk. However, a CASH_IN should not be evaluated in isolation from what follows it — a large CASH_IN immediately followed by a CASH_OUT or TRANSFER of a similar amount is the signature of the mule pass-through pattern already described in Case 002, just from the deposit side. This case exists in the knowledge base specifically so the model/analyst distinguishes "CASH_IN as a standalone, low-risk event" from "CASH_IN as the first leg of a linked pass-through," rather than treating every CASH_IN as automatically benign.
+
+---
+
+## Case 008: Small DEBIT Transaction, Escalated Only Due to Account Context
+
+**Pattern summary:** Transaction type: DEBIT, amount: small. A low-value DEBIT transaction that would normally be ignored, but was escalated because of surrounding account behavior rather than the transaction's own size.
+
+An account with no prior DEBIT activity in its history initiated a DEBIT of approximately 4,000 shortly after two failed login attempts and a change to the account's registered contact details.
+
+**Outcome:** The transaction amount itself was far below any value-based threshold and would not have triggered a rule flag on its own. It was escalated only because the account-monitoring layer flagged the preceding credential/contact-detail changes as a possible precursor to account takeover, and the DEBIT was treated as corroborating activity. Confirmed as early-stage account takeover; DEBIT reversed before further transactions occurred.
+
+**Key indicators present:** Transaction amount alone is not suspicious, first-ever transaction of this type for the account, temporal proximity to account credential changes.
+
+**Lesson for automated systems:** DEBIT transactions are typically small ATM-style withdrawals and are almost never fraudulent by amount alone, which means a purely transaction-level or amount-based model will consistently under-score them. Meaningful DEBIT fraud detection depends on account-context signals (login anomalies, profile changes, first-time transaction type) that live outside the transaction record itself. This is the same structural blind spot as Cases 002 and 004 — the fraud signal lives in context the per-transaction model cannot see — but manifests here at very low dollar amounts, which is easy to deprioritize if analysts only triage by transaction size.
+
+---
+
 ## Summary Table of Case Patterns
 
 | Case | Pattern | Model Score | Rule Flags | Correct Classification |
@@ -82,5 +124,8 @@ A long-standing customer account with a stable high balance initiated a CASH_OUT
 | 003 | High-value CASH_OUT, ambiguous destination balance | Low | Yes | Escalated — inconclusive, requires review |
 | 004 | Structuring via sub-threshold transfers | Low (per-transaction) | No (per-transaction) | Fraud (only visible via velocity aggregation) |
 | 005 | Large legitimate withdrawal | N/A | Yes | Legitimate |
+| 006 | Routine PAYMENT, no fraud indicators | Low | No | Legitimate |
+| 007 | CASH_IN deposit, standalone vs. linked context | Low | No | Legitimate (standalone) / context-dependent |
+| 008 | Small DEBIT, escalated via account context only | N/A (amount too low to score meaningfully) | Yes (context-based) | Fraud (account takeover precursor) |
 
-**Cross-case observation:** In four of the five cases above, single-transaction fraud probability alone was an unreliable standalone signal — either under-scoring true fraud (Cases 002, 003, 004) or over-flagging legitimate activity (Case 005) at the rule level. This reinforces that layered detection — combining model scoring, rule-based checks, and in some cases account-level or velocity-based context — consistently outperforms any single method in isolation.
+**Cross-case observation:** In six of the eight cases above, single-transaction fraud probability alone was an unreliable standalone signal — either under-scoring true fraud (Cases 002, 003, 004, 008) or over-flagging legitimate activity (Case 005) at the rule level, or reflecting a low base rate rather than genuine model confidence (Cases 006, 007). This reinforces that layered detection — combining model scoring, rule-based checks, and in some cases account-level or velocity-based context — consistently outperforms any single method in isolation. Notably, Cases 006–008 also show that PAYMENT, CASH_IN, and DEBIT transaction types are structurally underrepresented in fraud-labeled training data, so low model scores on these types should be interpreted as "the model has little to say" rather than "the model has confirmed this is safe."
