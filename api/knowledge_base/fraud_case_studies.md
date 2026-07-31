@@ -115,6 +115,20 @@ An account with no prior DEBIT activity in its history initiated a DEBIT of appr
 
 ---
 
+## Case 009: Account Takeover via Staged Sub-Threshold Withdrawals (Evades Full-Drain Detection)
+
+**Pattern summary:** Account takeover where the attacker deliberately avoids the exact signature that caught Case 001 — instead of one full-balance transfer, funds are removed via several smaller CASH_OUT transactions that each stay under the high-value review threshold, with a residual balance intentionally left behind.
+
+An account with a stable balance of approximately 180,000 had its registered mobile number and password changed within a 20-minute window, following two failed login attempts from an unrecognized device — the same precursor pattern seen in Case 008. Over the following 90 minutes, four CASH_OUT transactions were initiated in sequence, each between 35,000 and 42,000, moving a cumulative 152,000 out of the account. No single transaction breached the 200,000 high-value threshold, and the account was left with a residual balance of roughly 28,000 rather than zero — avoiding both the "full balance drain" signature from Case 001 and the single-transaction high-value flag.
+
+**Outcome:** No individual CASH_OUT triggered a rule-based flag on amount or full-drain grounds. The pattern was only caught because the account-context layer had already flagged the credential and contact-detail changes preceding the withdrawals (per the Case 008 pattern), which prompted a velocity review of the account's transactions in the following hours — surfacing four same-day CASH_OUTs from an account with no prior CASH_OUT history. Confirmed as account takeover; remaining balance frozen, three of four destination accounts identified as known mule accounts from prior cases.
+
+**Key indicators present:** Credential/contact-detail change immediately preceding transaction activity, multiple same-type transactions in a short window each individually below review thresholds, deliberately non-zero residual balance, first-ever occurrence of this transaction type/velocity for the account.
+
+**Lesson for automated systems:** This case demonstrates adversarial adaptation directly analogous to Case 003 — once a full-drain or single-large-transaction rule is known (or can be inferred through trial and error), an attacker with valid session access can restructure the same theft to resemble Case 004's structuring pattern instead. A rules layer that only checks "was the account fully drained" or "did any single transaction exceed the threshold" will miss this variant entirely. Effective detection requires combining account-context signals (credential/profile changes, new-device login) with velocity monitoring (transaction count and cumulative amount per account per rolling window) rather than relying on any single-transaction property — the same conclusion as Case 004, but arrived at from the account-takeover side rather than the laundering side.
+
+---
+
 ## Summary Table of Case Patterns
 
 | Case | Pattern | Model Score | Rule Flags | Correct Classification |
@@ -127,5 +141,6 @@ An account with no prior DEBIT activity in its history initiated a DEBIT of appr
 | 006 | Routine PAYMENT, no fraud indicators | Low | No | Legitimate |
 | 007 | CASH_IN deposit, standalone vs. linked context | Low | No | Legitimate (standalone) / context-dependent |
 | 008 | Small DEBIT, escalated via account context only | N/A (amount too low to score meaningfully) | Yes (context-based) | Fraud (account takeover precursor) |
+| 009 | Account takeover, staged sub-threshold withdrawals | Low (per-transaction) | No (per-transaction) | Fraud (only visible via account-context + velocity combined) |
 
-**Cross-case observation:** In six of the eight cases above, single-transaction fraud probability alone was an unreliable standalone signal — either under-scoring true fraud (Cases 002, 003, 004, 008) or over-flagging legitimate activity (Case 005) at the rule level, or reflecting a low base rate rather than genuine model confidence (Cases 006, 007). This reinforces that layered detection — combining model scoring, rule-based checks, and in some cases account-level or velocity-based context — consistently outperforms any single method in isolation. Notably, Cases 006–008 also show that PAYMENT, CASH_IN, and DEBIT transaction types are structurally underrepresented in fraud-labeled training data, so low model scores on these types should be interpreted as "the model has little to say" rather than "the model has confirmed this is safe."
+**Cross-case observation:** In seven of the nine cases above, single-transaction fraud probability alone was an unreliable standalone signal — either under-scoring true fraud (Cases 002, 003, 004, 008, 009) or over-flagging legitimate activity (Case 005) at the rule level, or reflecting a low base rate rather than genuine model confidence (Cases 006, 007). This reinforces that layered detection — combining model scoring, rule-based checks, account-context signals, and velocity-based aggregation — consistently outperforms any single method in isolation. Case 009 in particular shows that a rules layer designed around one known fraud signature (full drain, per Case 001) can be deliberately evaded once an attacker adapts to it, reinforcing the same adversarial-adaptation lesson first raised in Case 003.
