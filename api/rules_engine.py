@@ -24,6 +24,15 @@ def check_rules(transaction: dict) -> list[str]:
     if txn_type in ["CASH_OUT", "TRANSFER"] and amount > 500000:
         flags.append(f"High-value {txn_type} transaction (>500,000)")
 
+    # Recent credential/contact-detail change preceding this transaction (Case 008/009 pattern)
+    cred_change_mins = transaction.get("minutes_since_credential_change")
+    if cred_change_mins is not None and cred_change_mins < 120:
+        flags.append(f"Transaction occurred {cred_change_mins:.0f} minutes after a credential/contact-detail change")
+
+    # First-ever occurrence of this transaction type for the account (corroborating signal, not standalone)
+    if transaction.get("is_first_transaction_type_for_account") and cred_change_mins is not None and cred_change_mins < 120:
+        flags.append(f"First-ever {txn_type} transaction for this account, shortly after credential change — possible early-stage takeover")
+
     return flags
 
 def check_chain_rules(transactions: list[dict]) -> list[str]:
@@ -58,7 +67,30 @@ def check_chain_rules(transactions: list[dict]) -> list[str]:
 
     flags.extend(check_cycle(transactions))
     flags.extend(check_currency_mismatch(transactions))
-    
+    flags.extend(check_velocity(transactions))
+
+    return flags
+
+
+def check_velocity(transactions: list[dict]) -> list[str]:
+    """Flag accounts with several transactions in the same chain — Case 009 staged-withdrawal pattern."""
+    flags = []
+    by_account = {}
+    for i, txn in enumerate(transactions):
+        orig = txn.get("nameOrig")
+        if not orig:
+            continue
+        by_account.setdefault(orig, []).append((i, txn))
+
+    for orig, hops in by_account.items():
+        if len(hops) >= 3:
+            total = sum(t["amount"] for _, t in hops)
+            hop_numbers = ", ".join(str(i + 1) for i, _ in hops)
+            flags.append(
+                f"Account {orig}: {len(hops)} transactions in this chain (hops {hop_numbers}) "
+                f"totaling {total:,.0f} — possible staged withdrawal / structuring"
+            )
+
     return flags
 
 
