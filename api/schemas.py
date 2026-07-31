@@ -21,6 +21,8 @@ class Transaction(BaseModel):
     payment_currency: Optional[str] = None
     payment_format: Optional[str] = None
     account_age_days: Optional[int] = None
+    minutes_since_credential_change: Optional[float] = None
+    is_first_transaction_type_for_account: Optional[bool] = None
 
 class TransactionChain(BaseModel):
     transactions: list[Transaction]
