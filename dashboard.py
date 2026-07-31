@@ -109,6 +109,34 @@ def make_case_id(item):
     raw = f"{item['created_at']}{item['transaction']['amount']}"
     return "CASE-" + hashlib.md5(raw.encode()).hexdigest()[:6].upper()
 
+def split_takeover_flags(flags):
+    """Separate credential-change / account-takeover flags from generic rule flags."""
+    takeover, other = [], []
+    for f in flags or []:
+        if "credential" in f.lower() or "takeover" in f.lower():
+            takeover.append(f)
+        else:
+            other.append(f)
+    return takeover, other
+
+def render_flags(flags, key_prefix=""):
+    """Render rule flags with takeover signals shown as a distinct badge."""
+    if not flags:
+        return
+    takeover_flags, other_flags = split_takeover_flags(flags)
+    if takeover_flags:
+        st.markdown("*🔑 Account Takeover Signal*")
+        for flag in takeover_flags:
+            st.markdown(
+                f'''<div style="background:#3b1a1a; border:1px solid #ef4444; border-radius:6px;
+                     padding:8px 12px; margin-bottom:6px; color:#fca5a5;">🔑 {flag}</div>''',
+                unsafe_allow_html=True,
+            )
+    if other_flags:
+        st.markdown("*🚩 Rule Flags*")
+        for flag in other_flags:
+            st.warning(flag)
+
 # ================= DASHBOARD =================
 if page == "🏠 Dashboard":
     st.title("AI Fraud Investigation & Compliance Assistant")
@@ -393,9 +421,7 @@ elif page == "🔎 Investigate":
             st.markdown("<br>", unsafe_allow_html=True)
 
             if result.get("rule_flags"):
-                st.markdown("**🚩 Rule-Based Red Flags**")
-                for flag in result["rule_flags"]:
-                    st.warning(flag)
+                render_flags(result["rule_flags"])
 
             if result.get("top_features"):
                 st.markdown("**📊 Top SHAP Features** (sorted by absolute impact)")
@@ -591,8 +617,15 @@ elif page == "🔗 Chain Investigation":
             st.markdown("<br>", unsafe_allow_html=True)
 
             if chain_result.get("chain_flags"):
-                st.markdown("**🚩 Chain-Level Red Flags** (patterns only visible across hops)")
-                for flag in chain_result["chain_flags"]:
+                st.markdown("**Chain-Level Red Flags** (patterns only visible across hops)")
+                takeover_flags, other_flags = split_takeover_flags(chain_result["chain_flags"])
+                for flag in takeover_flags:
+                    st.markdown(
+                        f'''<div style="background:#3b1a1a; border:1px solid #ef4444; border-radius:6px;
+                             padding:8px 12px; margin-bottom:6px; color:#fca5a5;">🔑 {flag}</div>''',
+                        unsafe_allow_html=True,
+                    )
+                for flag in other_flags:
                     st.error(flag)
             else:
                 st.info("No cross-transaction patterns detected.")
@@ -621,9 +654,7 @@ elif page == "🔗 Chain Investigation":
                         st.write(f"**Model-only tier:** {hop['model_risk_tier']}")
 
                     if hop.get("rule_flags"):
-                        st.markdown("*Rule Flags:*")
-                        for flag in hop["rule_flags"]:
-                            st.warning(flag)
+                        render_flags(hop["rule_flags"], key_prefix=f"hop{i}")
 
                     if hop.get("similar_cases"):
                         st.markdown("*Similar Cases:*")
@@ -752,9 +783,7 @@ elif page == "📚 Investigation History":
             st.markdown("<br>", unsafe_allow_html=True)
 
             if item.get("rule_flags"):
-                st.markdown("**🚩 Rule Flags**")
-                for flag in item["rule_flags"]:
-                    st.warning(flag)
+                render_flags(item["rule_flags"])
 
             if item.get("top_features"):
                 st.markdown("**📊 Top SHAP Features**")
