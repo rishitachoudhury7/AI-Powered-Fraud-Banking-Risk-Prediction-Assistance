@@ -43,7 +43,11 @@ def chunk_markdown(filepath: str) -> list[dict]:
 
 def ingest():
     chunks = chunk_markdown("api/knowledge_base/fraud_case_studies.md")
-    print(f"\nFound {len(chunks)} chunks. Embedding and uploading...")
+    print(f"\nFound {len(chunks)} chunks. Clearing old entries and re-uploading...")
+
+    # Clear existing chunks first so re-running this script after editing
+    # fraud_case_studies.md doesn't leave stale/duplicate rows behind.
+    supabase.table("policy_chunks").delete().neq("section", "").execute()
 
     for chunk in chunks:
         embedding = get_embedding(chunk["content"])
