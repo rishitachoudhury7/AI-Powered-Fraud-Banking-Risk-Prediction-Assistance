@@ -2,9 +2,9 @@
 
 An end-to-end fraud investigation copilot that combines a production XGBoost classifier, SHAP explainability, a rule-based AML typology engine, retrieval-augmented generation (RAG) over historical case precedent, and an LLM compliance analyst — wrapped in a live dashboard for single-transaction and multi-hop chain investigations.
 
-**🔗 Live Demo:** [https://rishitachoudhury7-fraud-detection-dashboard-hqxcnk.streamlit.app](https://rishitachoudhury7-fraud-detection-dashboard-hqxcnk.streamlit.app)
+**🔗 Live Demo:** https://rishitachoudhury7-fraud-detection-dashboard-hqxcnk.streamlit.app/ 
 
-> The backend runs on Render's free tier and may take 30–60 seconds to respond on the first request after a period of inactivity (cold start).
+> The backend runs on Render's free tier and may take 2–3 mins to respond on the first request after a period of inactivity (cold start).
 
 ---
 
