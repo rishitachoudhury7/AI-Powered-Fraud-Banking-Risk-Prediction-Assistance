@@ -4,7 +4,7 @@ An AI-powered assistant that investigates bank transactions for signs of fraud �
 
 **🔗 Try it live:**  https://rishitachoudhury7-fraud-detection-dashboard-hqxcnk.streamlit.app/ 
 
-> The backend is hosted on a free server, so the first request after a while of inactivity may take 30–60 seconds to respond while it wakes up. After that, it runs normally.
+> The backend is hosted on a free server, so the first request after a while of inactivity may take 2-3 mins to respond while it wakes up. After that, it runs normally.
 
 ---
 
