@@ -53,7 +53,7 @@ def generate_investigation_report(transaction: dict, probability: float, rule_fl
     }
 
     response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model="openai/gpt-oss-20b",
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": json.dumps(evidence)}
